@@ -7,6 +7,9 @@ import (
 )
 
 func main() {
-	version := pigpio.Version()
-	fmt.Printf("pigpio version %d\n", version)
+	pigpioVersion := pigpio.Version()
+	fmt.Printf("pigpio version %d\n", pigpioVersion)
+
+	hwRevision := pigpio.HardwareRevision()
+	fmt.Printf("hardware revision %x\n", hwRevision)
 }

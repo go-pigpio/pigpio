@@ -10,8 +10,14 @@ package pigpio
 */
 import "C"
 
-// Version returns the integer version of the pigpio C library
+// Version returns the version of the pigpio C library as a uint
 func Version() (version uint) {
 	version = uint(C.gpioVersion())
+	return
+}
+
+// HardwareRevision returns the hardware revision of the Raspberry Pi as a uint
+func HardwareRevision() (version uint) {
+	version = uint(C.gpioHardwareRevision())
 	return
 }

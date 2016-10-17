@@ -8,3 +8,10 @@ func TestVersion(t *testing.T) {
 		t.Error("invalid version number: ", version)
 	}
 }
+
+func TestHardwareRevision(t *testing.T) {
+	revision := HardwareRevision()
+	if revision <= 0 {
+		t.Error("invalid hardware revision number: ", revision)
+	}
+}
