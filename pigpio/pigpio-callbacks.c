@@ -20,3 +20,22 @@ int goSetAlertFunc(unsigned userGpio, int cbi) {
     myUserdata->cbi = cbi;
     return gpioSetAlertFuncEx(userGpio, goAlertFunc_cgo, myUserdata);
 }
+
+void goTimerFunc_cgo(void *userdata);
+int goSetTimerFunc(unsigned timer, unsigned millis, int cbi);
+
+typedef struct {
+    int cbi;
+} goTimerFunc_userdata;
+
+void goTimerFunc_cgo(void *userdata) {
+    goTimerFunc_userdata *myUserdata = (goTimerFunc_userdata*)userdata;
+    goTimerFunc(myUserdata->cbi);
+}
+
+int goSetTimerFunc(unsigned timer, unsigned millis, int cbi) {
+    goTimerFunc_userdata *myUserdata;
+    myUserdata = malloc(sizeof(goTimerFunc_userdata));
+    myUserdata->cbi = cbi;
+    return gpioSetTimerFuncEx(timer, millis, goTimerFunc_cgo, myUserdata);
+}
