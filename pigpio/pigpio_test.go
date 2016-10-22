@@ -37,7 +37,7 @@ func TestBeginner(t *testing.T) {
 		t.Run("Input", func(t *testing.T) {
 			err = pigpio.SetMode(7, pigpio.Input)
 			if err != nil {
-				t.Error("error setting mode: ", err)
+				t.Error("error setting input mode: ", err)
 			}
 			mode, err := pigpio.GetMode(7)
 			if err != nil {
@@ -50,7 +50,7 @@ func TestBeginner(t *testing.T) {
 		t.Run("Output", func(t *testing.T) {
 			err = pigpio.SetMode(7, pigpio.Output)
 			if err != nil {
-				t.Error("error setting mode: ", err)
+				t.Error("error setting output mode: ", err)
 			}
 			mode, err := pigpio.GetMode(7)
 			if err != nil {
@@ -60,43 +60,71 @@ func TestBeginner(t *testing.T) {
 				t.Error("mode was not set to output: ", mode)
 			}
 		})
-		t.Run("SetPullUpDownRead", func(t *testing.T) {
-			err = pigpio.SetMode(7, pigpio.Input)
-			if err != nil {
-				t.Error("error setting mode: ", err)
-			}
-			err := pigpio.SetPullUpDown(7, pigpio.PudDown)
-			if err != nil {
-				t.Error("error setting pulldown: ", err)
-			}
-			level, err := pigpio.Read(7)
-			if err != nil {
-				t.Error("error reading gpio: ", err)
-			}
-			if level {
-				t.Error("level was not off despite being connected to pull-down (perhaps GPIO 7 is connected?)")
-			}
-			err = pigpio.SetPullUpDown(7, pigpio.PudUp)
-			if err != nil {
-				t.Error("error setting pullup: ", err)
-			}
-			level, err = pigpio.Read(7)
-			if err != nil {
-				t.Error("error reading gpio: ", err)
-			}
-			if !level {
-				t.Error("level was not on despite being connected to pull-up (perhaps GPIO 7 is connected?)")
-			}
-			err = pigpio.SetPullUpDown(7, pigpio.PudOff)
-			if err != nil {
-				t.Error("error setting pullupdown off: ", err)
-			}
-		})
+	})
+	t.Run("SetPullUpDownRead", func(t *testing.T) {
+		err = pigpio.SetMode(7, pigpio.Input)
+		if err != nil {
+			t.Error("error setting input mode: ", err)
+		}
+		err := pigpio.SetPullUpDown(7, pigpio.PudDown)
+		if err != nil {
+			t.Error("error setting pulldown: ", err)
+		}
+		level, err := pigpio.Read(7)
+		if err != nil {
+			t.Error("error reading gpio: ", err)
+		}
+		if level {
+			t.Error("level was not off despite being connected to pull-down (perhaps GPIO 7 is connected?)")
+		}
+		err = pigpio.SetPullUpDown(7, pigpio.PudUp)
+		if err != nil {
+			t.Error("error setting pullup: ", err)
+		}
+		level, err = pigpio.Read(7)
+		if err != nil {
+			t.Error("error reading gpio: ", err)
+		}
+		if !level {
+			t.Error("level was not on despite being connected to pull-up (perhaps GPIO 7 is connected?)")
+		}
+		err = pigpio.SetPullUpDown(7, pigpio.PudOff)
+		if err != nil {
+			t.Error("error setting pullupdown off: ", err)
+		}
+	})
+	t.Run("WriteRead", func(t *testing.T) {
+		err = pigpio.SetMode(7, pigpio.Output)
+		if err != nil {
+			t.Error("error setting output mode: ", err)
+		}
+		err = pigpio.Write(7, true)
+		if err != nil {
+			t.Error("error writing GPIO on:", err)
+		}
+		level, err := pigpio.Read(7)
+		if err != nil {
+			t.Error("error reading GPIO:", err)
+		}
+		if !level {
+			t.Error("GPIO not on")
+		}
+		err = pigpio.Write(7, false)
+		if err != nil {
+			t.Error("error writing GPIO off:", err)
+		}
+		level, err = pigpio.Read(7)
+		if err != nil {
+			t.Error("error reading GPIO:", err)
+		}
+		if level {
+			t.Error("GPIO not off")
+		}
 	})
 	t.Run("BeginnerCallbacks", func(t *testing.T) {
 		err = pigpio.SetMode(7, pigpio.Input)
 		if err != nil {
-			t.Error("error setting mode: ", err)
+			t.Error("error setting input mode: ", err)
 		}
 		err = pigpio.SetPullUpDown(7, pigpio.PudDown)
 		if err != nil {
