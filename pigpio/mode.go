@@ -69,23 +69,3 @@ func (mode Mode) String() (s string) {
 	s = fmt.Sprintf("Mode(%s)", modeStr)
 	return
 }
-
-// SetMode sets the GPIO mode
-func SetMode(gpio uint, mode Mode) (err error) {
-	cErr := int(C.gpioSetMode(C.unsigned(gpio), C.unsigned(mode)))
-	if cErr != 0 {
-		err = Errno(cErr)
-	}
-	return
-}
-
-// GetMode gets the GPIO mode
-func GetMode(gpio uint) (mode Mode, err error) {
-	modeErr := int(C.gpioGetMode(C.unsigned(gpio)))
-	if modeErr >= 0 {
-		mode = Mode(modeErr)
-	} else {
-		err = Errno(modeErr)
-	}
-	return
-}

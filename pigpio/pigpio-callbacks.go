@@ -4,17 +4,10 @@ package pigpio
 #cgo CFLAGS: -std=gnu99
 #include <stdint.h>
 #include <pigpio.h>
-
-extern int goSetAlertFunc(unsigned userGpio, int cbi);
-extern int goSetTimerFunc(unsigned timer, unsigned millis, int cbi);
 */
 import "C"
 
-import (
-	"fmt"
-	"sync"
-	"time"
-)
+import "sync"
 
 type AlertFunc func(gpio int, level int, tick uint32)
 
@@ -37,15 +30,6 @@ func registerAlertFunc(alertFunc AlertFunc) int {
 	}
 	alertFuncs[alertFuncIndex] = alertFunc
 	return alertFuncIndex
-}
-
-func SetAlertFunc(userGpio uint, alertFunc AlertFunc) (err error) {
-	cbi := registerAlertFunc(alertFunc)
-	cErr := C.goSetAlertFunc(C.unsigned(userGpio), C.int(cbi))
-	if cErr != 0 {
-		err = fmt.Errorf("SetAlertFunc Error: %d", cErr)
-	}
-	return
 }
 
 //export goAlertFunc
@@ -75,17 +59,6 @@ func registerTimerFunc(timerFunc TimerFunc) int {
 	}
 	timerFuncs[timerFuncIndex] = timerFunc
 	return timerFuncIndex
-}
-
-// SetTimerFunc registers a callback function to be called periodically
-// period can vary from 10ms to 60s - durations outside that range will result in a BadMs error
-func SetTimerFunc(timer uint, period time.Duration, timerFunc TimerFunc) (err error) {
-	cbi := registerTimerFunc(timerFunc)
-	cErr := C.goSetTimerFunc(C.unsigned(timer), C.unsigned(period/time.Millisecond), C.int(cbi))
-	if cErr != 0 {
-		err = fmt.Errorf("SetTimerFunc Error: %d", cErr)
-	}
-	return
 }
 
 //export goTimerFunc
