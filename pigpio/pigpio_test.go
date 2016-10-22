@@ -121,6 +121,74 @@ func TestBeginner(t *testing.T) {
 			t.Error("GPIO not off")
 		}
 	})
+	t.Run("PWM", func(t *testing.T) {
+		err := pigpio.SetMode(7, pigpio.Output)
+		if err != nil {
+			t.Error("error setting output mode: ", err)
+		}
+		err = pigpio.PWM(7, 128)
+		if err != nil {
+			t.Error("error setting PWM to 50% duty cycle: ", err)
+		}
+		t.Run("GetPWMDutyCycle50", func(t *testing.T) {
+			dutycycle, err := pigpio.GetPWMdutycycle(7)
+			if err != nil {
+				t.Error("failed to get pwm duty cycle")
+			}
+			if dutycycle != 128 {
+				t.Error("reported dutycycle not 128: ", dutycycle)
+			}
+		})
+		t.Run("ObserveDutyCycle50", func(t *testing.T) {
+			onCount := 0
+			totalCount := 0
+			risingEdges := 0
+			lastLevel := false
+			for {
+				level, err := pigpio.Read(7)
+				if err != nil {
+					t.Error("error reading GPIO: ", err)
+				}
+				if level {
+					onCount++
+				}
+				totalCount++
+				if lastLevel != level {
+					if !lastLevel {
+						risingEdges++
+					}
+					lastLevel = level
+				}
+				if risingEdges > 10 && !level {
+					break
+				}
+			}
+			onPct := 100.0 * onCount / totalCount
+			if testing.Verbose() {
+				t.Logf("observed duty cycle %d%% for PWM duty cycle set at 50%% after %d observations", onPct, totalCount)
+			}
+			if onPct < 48 {
+				t.Error("observed duty cycle was <48% while PWM duty cycle set to 50%: ", onPct)
+			}
+			if onPct > 52 {
+				t.Error("observed duty cycle was >52% while PWM duty cycle set to 50%: ", onPct)
+			}
+		})
+
+		err = pigpio.PWM(7, 0)
+		if err != nil {
+			t.Error("error setting PWM to 0% duty cycle: ", err)
+		}
+		t.Run("GetPWMDutyCycle0", func(t *testing.T) {
+			dutycycle, err := pigpio.GetPWMdutycycle(7)
+			if err != nil {
+				t.Error("failed to get pwm duty cycle")
+			}
+			if dutycycle != 0 {
+				t.Error("reported dutycycle not 0: ", dutycycle)
+			}
+		})
+	})
 	t.Run("BeginnerCallbacks", func(t *testing.T) {
 		err = pigpio.SetMode(7, pigpio.Input)
 		if err != nil {
