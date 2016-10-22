@@ -8,14 +8,14 @@ import (
 )
 
 func TestEssential(t *testing.T) {
-	t.Run("TestInitialise", func(t *testing.T) {
+	t.Run("Initialise", func(t *testing.T) {
 		_, err := pigpio.Initialise()
 		if err != nil {
 			t.Error("failed to initialise: ", err)
 		}
-		t.Run("TestTerminate", func(t *testing.T) {
+		t.Run("Terminate", func(t *testing.T) {
 			pigpio.Terminate()
-			t.Run("TestInitialiseAfterTerminate", func(t *testing.T) {
+			t.Run("InitialiseAfterTerminate", func(t *testing.T) {
 				_, err := pigpio.Initialise()
 				defer pigpio.Terminate()
 				if err != nil {
@@ -33,89 +33,119 @@ func TestBeginner(t *testing.T) {
 	if err != nil {
 		t.Error("failed to initialise: ", err)
 	}
-	err = pigpio.SetMode(7, pigpio.Input)
-	if err != nil {
-		t.Error("error setting mode: ", err)
-	}
-	err = pigpio.SetPullUpDown(7, pigpio.PudDown)
-	if err != nil {
-		t.Error("error setting gpio 7 pull down: ", err)
-	}
-	t.Run("TestAlertFunc", func(t *testing.T) {
-		alertChan := make(chan int, 2)
-		err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
-			alertChan <- level
+	t.Run("SetGetMode", func(t *testing.T) {
+		t.Run("Input", func(t *testing.T) {
+			err = pigpio.SetMode(7, pigpio.Input)
+			if err != nil {
+				t.Error("error setting mode: ", err)
+			}
+			mode, err := pigpio.GetMode(7)
+			if err != nil {
+				t.Error("error getting mode: ", err)
+			}
+			if mode != pigpio.Input {
+				t.Error("mode was not set to input: ", mode)
+			}
 		})
+		t.Run("Output", func(t *testing.T) {
+			err = pigpio.SetMode(7, pigpio.Output)
+			if err != nil {
+				t.Error("error setting mode: ", err)
+			}
+			mode, err := pigpio.GetMode(7)
+			if err != nil {
+				t.Error("error getting mode: ", err)
+			}
+			if mode != pigpio.Output {
+				t.Error("mode was not set to output: ", mode)
+			}
+		})
+	})
+	t.Run("BeginnerCallbacks", func(t *testing.T) {
+		err = pigpio.SetMode(7, pigpio.Input)
 		if err != nil {
-			t.Error("error setting alert func: ", err)
+			t.Error("error setting mode: ", err)
 		}
-		time.Sleep(200 * time.Millisecond)
-		err = pigpio.SetPullUpDown(7, pigpio.PudUp)
-		if err != nil {
-			t.Error("error setting gpio 7 pull up: ", err)
-		}
-		time.Sleep(200 * time.Millisecond)
 		err = pigpio.SetPullUpDown(7, pigpio.PudDown)
 		if err != nil {
-			t.Error("error setting gpio 7 pull up: ", err)
+			t.Error("error setting gpio 7 pull down: ", err)
 		}
-		firstTimeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(1 * time.Second)
-			firstTimeout <- true
-		}()
-		select {
-		case high := <-alertChan:
-			if high != 1 {
-				t.Error("first alert was not high:", high)
+		t.Run("AlertFunc", func(t *testing.T) {
+			alertChan := make(chan int, 2)
+			err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
+				alertChan <- level
+			})
+			if err != nil {
+				t.Error("error setting alert func: ", err)
 			}
-		case <-firstTimeout:
-			t.Error("no high level alert on channel before firstTimeout")
-		}
-		secondTimeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(1 * time.Second)
-			secondTimeout <- true
-		}()
-		select {
-		case low := <-alertChan:
-			if low != 0 {
-				t.Error("first alert was not low:", low)
+			time.Sleep(200 * time.Millisecond)
+			err = pigpio.SetPullUpDown(7, pigpio.PudUp)
+			if err != nil {
+				t.Error("error setting gpio 7 pull up: ", err)
 			}
-		case <-secondTimeout:
-			t.Error("no low level alert on channel before secondTimeout")
-		}
-	})
-	t.Run("TestTimerFunc", func(t *testing.T) {
-		timerChan := make(chan int, 2)
-		err = pigpio.SetTimerFunc(0, 100*time.Millisecond, func() {
-			timerChan <- 1
+			time.Sleep(200 * time.Millisecond)
+			err = pigpio.SetPullUpDown(7, pigpio.PudDown)
+			if err != nil {
+				t.Error("error setting gpio 7 pull up: ", err)
+			}
+			firstTimeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(1 * time.Second)
+				firstTimeout <- true
+			}()
+			select {
+			case high := <-alertChan:
+				if high != 1 {
+					t.Error("first alert was not high:", high)
+				}
+			case <-firstTimeout:
+				t.Error("no high level alert on channel before firstTimeout")
+			}
+			secondTimeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(1 * time.Second)
+				secondTimeout <- true
+			}()
+			select {
+			case low := <-alertChan:
+				if low != 0 {
+					t.Error("first alert was not low:", low)
+				}
+			case <-secondTimeout:
+				t.Error("no low level alert on channel before secondTimeout")
+			}
 		})
-		if err != nil {
-			t.Error("error setting timer func: ", err)
-		}
-		firstTimeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(200 * time.Millisecond)
-			firstTimeout <- true
-		}()
-		select {
-		case <-timerChan:
-			// ok
-		case <-firstTimeout:
-			t.Error("no timer on channel before first firstTimeout")
-		}
-		secondTimeout := make(chan bool, 1)
-		go func() {
-			time.Sleep(200 * time.Millisecond)
-			secondTimeout <- true
-		}()
-		select {
-		case <-timerChan:
-			// ok
-		case <-secondTimeout:
-			t.Error("no timer on channel before second secondTimeout")
-		}
+		t.Run("TimerFunc", func(t *testing.T) {
+			timerChan := make(chan int, 2)
+			err = pigpio.SetTimerFunc(0, 100*time.Millisecond, func() {
+				timerChan <- 1
+			})
+			if err != nil {
+				t.Error("error setting timer func: ", err)
+			}
+			firstTimeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(200 * time.Millisecond)
+				firstTimeout <- true
+			}()
+			select {
+			case <-timerChan:
+				// ok
+			case <-firstTimeout:
+				t.Error("no timer on channel before first firstTimeout")
+			}
+			secondTimeout := make(chan bool, 1)
+			go func() {
+				time.Sleep(200 * time.Millisecond)
+				secondTimeout <- true
+			}()
+			select {
+			case <-timerChan:
+				// ok
+			case <-secondTimeout:
+				t.Error("no timer on channel before second secondTimeout")
+			}
+		})
 	})
 }
 
@@ -125,7 +155,7 @@ func TestIntermediate(t *testing.T) {
 	if err != nil {
 		t.Error("failed to initialise: ", err)
 	}
-	t.Run("TestWatchdogAlert", func(t *testing.T) {
+	t.Run("WatchdogAlert", func(t *testing.T) {
 		alertChan := make(chan int, 1)
 		err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
 			alertChan <- level
@@ -159,13 +189,13 @@ func TestIntermediate(t *testing.T) {
 
 func TestUtility(t *testing.T) {
 	// HardwareRevision and Version can be called before Initialise
-	t.Run("TestHardwareRevision", func(t *testing.T) {
+	t.Run("HardwareRevision", func(t *testing.T) {
 		revision := pigpio.HardwareRevision()
 		if revision <= 0 {
 			t.Error("invalid hardware revision number: ", revision)
 		}
 	})
-	t.Run("TestVersion", func(t *testing.T) {
+	t.Run("Version", func(t *testing.T) {
 		version := pigpio.Version()
 		if version <= 0 {
 			t.Error("invalid version number: ", version)
