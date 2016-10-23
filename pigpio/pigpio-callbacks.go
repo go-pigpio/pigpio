@@ -22,6 +22,9 @@ func lookupAlertFunc(cbIndex int) AlertFunc {
 }
 
 func registerAlertFunc(alertFunc AlertFunc) int {
+	if alertFunc == nil {
+		return -1
+	}
 	alertFuncMu.Lock()
 	defer alertFuncMu.Unlock()
 	alertFuncIndex++
@@ -51,6 +54,9 @@ func lookupTimerFunc(cbIndex int) TimerFunc {
 }
 
 func registerTimerFunc(timerFunc TimerFunc) int {
+	if timerFunc == nil {
+		return -1
+	}
 	timerFuncMu.Lock()
 	defer timerFuncMu.Unlock()
 	timerFuncIndex++

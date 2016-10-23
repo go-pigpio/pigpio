@@ -16,6 +16,9 @@ void goAlertFunc_cgo(int gpio, int level, uint32_t tick, void *userdata) {
 
 int goSetAlertFunc(unsigned userGpio, int cbi) {
     goAlertFunc_userdata *myUserdata;
+    if(cbi == -1) {
+      return gpioSetAlertFunc(userGpio, NULL);
+    }
     myUserdata = malloc(sizeof(goAlertFunc_userdata));
     myUserdata->cbi = cbi;
     return gpioSetAlertFuncEx(userGpio, goAlertFunc_cgo, myUserdata);
@@ -35,6 +38,9 @@ void goTimerFunc_cgo(void *userdata) {
 
 int goSetTimerFunc(unsigned timer, unsigned millis, int cbi) {
     goTimerFunc_userdata *myUserdata;
+    if(cbi == -1) {
+      return gpioSetTimerFunc(timer, millis, NULL);
+    }
     myUserdata = malloc(sizeof(goTimerFunc_userdata));
     myUserdata->cbi = cbi;
     return gpioSetTimerFuncEx(timer, millis, goTimerFunc_cgo, myUserdata);
