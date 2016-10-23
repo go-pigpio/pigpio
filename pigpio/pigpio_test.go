@@ -243,6 +243,12 @@ func TestBeginner(t *testing.T) {
 				t.Error("no low level alert on channel before secondTimeout")
 			}
 		})
+		t.Run("AlertFuncClear", func(t *testing.T) {
+			err = pigpio.SetAlertFunc(7, nil)
+			if err != nil {
+				t.Error("error clearing alert func: ", err)
+			}
+		})
 		t.Run("TimerFunc", func(t *testing.T) {
 			timerChan := make(chan int, 2)
 			err = pigpio.SetTimerFunc(0, 100*time.Millisecond, func() {
@@ -274,6 +280,94 @@ func TestBeginner(t *testing.T) {
 				t.Error("no timer on channel before second secondTimeout")
 			}
 		})
+		t.Run("TimerFuncClear", func(t *testing.T) {
+			err = pigpio.SetTimerFunc(7, 1*time.Second, nil)
+			if err != nil {
+				t.Error("error clearing timer func: ", err)
+			}
+		})
+	})
+	t.Run("Servo", func(t *testing.T) {
+		err := pigpio.SetMode(7, pigpio.Output)
+		if err != nil {
+			t.Error("error setting output mode: ", err)
+		}
+		err = pigpio.Servo(7, 1500)
+		if err != nil {
+			t.Error("error setting servo pulsewidth: ", err)
+		}
+		servoLowTimes := make(chan time.Time, 10)
+		servoHighTimes := make(chan time.Time, 10)
+		done := make(chan bool)
+		err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
+			now := time.Now()
+			if level == 1 {
+				select {
+				case servoHighTimes <- now:
+					t.Logf("high transition at %v", now)
+				default:
+					select {
+					case done <- true:
+						t.Logf("done at %v", now)
+					}
+				}
+			} else if level == 0 {
+				select {
+				case servoLowTimes <- now:
+					t.Logf("low transition at %v", now)
+				default:
+					select {
+					case done <- true:
+						t.Logf("done at %v", now)
+					}
+				}
+			} else {
+				t.Error("unexpected level: ", level)
+			}
+		})
+		if err != nil {
+			t.Error("error setting alert func: ", err)
+		}
+		<-done
+		err = pigpio.SetAlertFunc(7, nil)
+		if err != nil {
+			t.Error("error clearing alert func: ", err)
+		}
+		var pulsewidths []time.Duration
+		for highTime := range servoHighTimes {
+			var lowTime time.Time
+			select {
+			case lowTime = <-servoLowTimes:
+				//
+			default:
+				break
+			}
+			if lowTime.Before(highTime) {
+				if len(pulsewidths) == 0 {
+					lowTime = <-servoLowTimes
+				} else {
+					t.Error("missing high transition")
+				}
+			}
+			pulsewidth := lowTime.Sub(highTime)
+			pulsewidths = append(pulsewidths, pulsewidth)
+		}
+		minPw := pulsewidths[0]
+		maxPw := pulsewidths[0]
+		for _, pw := range pulsewidths[1:] {
+			if pw < minPw {
+				minPw = pw
+			}
+			if pw > maxPw {
+				maxPw = pw
+			}
+		}
+		if minPw < 1499 {
+			t.Error("observed minimum pulsewidth less than 1499: ", minPw)
+		}
+		if maxPw > 1501 {
+			t.Error("observed minimum pulsewidth greater than 1501: ", minPw)
+		}
 	})
 }
 
