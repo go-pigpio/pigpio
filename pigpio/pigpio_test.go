@@ -165,7 +165,7 @@ func TestBeginner(t *testing.T) {
 			}
 			onPct := 100.0 * onCount / totalCount
 			if testing.Verbose() {
-				t.Logf("observed duty cycle %d%% for PWM duty cycle set at 50%% after %d observations", onPct, totalCount)
+				t.Logf("observed duty cycle %d%% for PWM duty cycle set at 50%% after %d samples", onPct, totalCount)
 			}
 			if onPct < 48 {
 				t.Error("observed duty cycle was <48% while PWM duty cycle set to 50%: ", onPct)
@@ -198,6 +198,7 @@ func TestBeginner(t *testing.T) {
 		if err != nil {
 			t.Error("error setting gpio 7 pull down: ", err)
 		}
+		time.Sleep(100 * time.Millisecond)
 		t.Run("AlertFunc", func(t *testing.T) {
 			alertChan := make(chan int, 2)
 			err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
@@ -206,15 +207,15 @@ func TestBeginner(t *testing.T) {
 			if err != nil {
 				t.Error("error setting alert func: ", err)
 			}
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			err = pigpio.SetPullUpDown(7, pigpio.PudUp)
 			if err != nil {
 				t.Error("error setting gpio 7 pull up: ", err)
 			}
-			time.Sleep(200 * time.Millisecond)
+			time.Sleep(100 * time.Millisecond)
 			err = pigpio.SetPullUpDown(7, pigpio.PudDown)
 			if err != nil {
-				t.Error("error setting gpio 7 pull up: ", err)
+				t.Error("error setting gpio 7 pull down: ", err)
 			}
 			firstTimeout := make(chan bool, 1)
 			go func() {
@@ -296,78 +297,68 @@ func TestBeginner(t *testing.T) {
 		if err != nil {
 			t.Error("error setting servo pulsewidth: ", err)
 		}
-		servoLowTimes := make(chan time.Time, 10)
-		servoHighTimes := make(chan time.Time, 10)
-		done := make(chan bool)
-		err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
-			now := time.Now()
-			if level == 1 {
-				select {
-				case servoHighTimes <- now:
-					t.Logf("high transition at %v", now)
-				default:
-					select {
-					case done <- true:
-						t.Logf("done at %v", now)
-					}
-				}
-			} else if level == 0 {
-				select {
-				case servoLowTimes <- now:
-					t.Logf("low transition at %v", now)
-				default:
-					select {
-					case done <- true:
-						t.Logf("done at %v", now)
-					}
-				}
-			} else {
-				t.Error("unexpected level: ", level)
+		t.Run("GetServoPulsewidth1500", func(t *testing.T) {
+			pulsewidth, err := pigpio.GetServoPulsewidth(7)
+			if err != nil {
+				t.Error("failed to get servo pulsewidth")
+			}
+			if pulsewidth != 1500 {
+				t.Error("reported pulsewidth not 1500: ", pulsewidth)
 			}
 		})
-		if err != nil {
-			t.Error("error setting alert func: ", err)
-		}
-		<-done
-		err = pigpio.SetAlertFunc(7, nil)
-		if err != nil {
-			t.Error("error clearing alert func: ", err)
-		}
-		var pulsewidths []time.Duration
-		for highTime := range servoHighTimes {
-			var lowTime time.Time
-			select {
-			case lowTime = <-servoLowTimes:
-				//
-			default:
-				break
-			}
-			if lowTime.Before(highTime) {
-				if len(pulsewidths) == 0 {
-					lowTime = <-servoLowTimes
-				} else {
-					t.Error("missing high transition")
+		t.Run("ObservePulsewidth1500", func(t *testing.T) {
+			totalCount := 0
+			risingEdges := 0
+			lastLevel := true
+			var pulsewidths []time.Duration
+			var risingTime time.Time
+			startTime := time.Now()
+			for {
+				level, err := pigpio.Read(7)
+				if err != nil {
+					t.Error("error reading GPIO: ", err)
+				}
+				totalCount++
+				if lastLevel != level {
+					if !lastLevel {
+						risingEdges++
+						risingTime = time.Now()
+					} else {
+						if !risingTime.IsZero() {
+							pulsewidth := time.Since(risingTime)
+							pulsewidths = append(pulsewidths, pulsewidth)
+						}
+					}
+					lastLevel = level
+				}
+				if risingEdges > 10 && !level {
+					break
 				}
 			}
-			pulsewidth := lowTime.Sub(highTime)
-			pulsewidths = append(pulsewidths, pulsewidth)
-		}
-		minPw := pulsewidths[0]
-		maxPw := pulsewidths[0]
-		for _, pw := range pulsewidths[1:] {
-			if pw < minPw {
-				minPw = pw
+			totalDuration := time.Since(startTime)
+			minPw := pulsewidths[0]
+			maxPw := pulsewidths[0]
+			for _, pw := range pulsewidths[1:] {
+				if pw < minPw {
+					minPw = pw
+				}
+				if pw > maxPw {
+					maxPw = pw
+				}
 			}
-			if pw > maxPw {
-				maxPw = pw
+			samplingInterval := time.Duration(totalDuration.Nanoseconds()/int64(totalCount)) * time.Nanosecond
+			if testing.Verbose() {
+				t.Logf("observed pulse widths ranging from %v to %v for Servo pulse width set at 1500µs after %d samples over %v (%v/sample)", minPw, maxPw, totalCount, totalDuration, samplingInterval)
 			}
-		}
-		if minPw < 1499 {
-			t.Error("observed minimum pulsewidth less than 1499: ", minPw)
-		}
-		if maxPw > 1501 {
-			t.Error("observed minimum pulsewidth greater than 1501: ", minPw)
-		}
+			minAcceptablePw := 1500*time.Microsecond - 2*samplingInterval
+			maxAcceptablePw := 1500*time.Microsecond + 2*samplingInterval
+			if minPw < minAcceptablePw {
+				t.Errorf("observed pulse width was <%v while Servo pulse width set to 1500µs: %v", minAcceptablePw, minPw)
+			}
+			if maxPw > maxAcceptablePw {
+				t.Errorf("observed pulse width was >%v while Servo pulse width set to 1500µs: %v", maxAcceptablePw, maxPw)
+			}
+		})
 	})
 }
 
