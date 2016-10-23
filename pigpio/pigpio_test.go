@@ -198,7 +198,7 @@ func TestBeginner(t *testing.T) {
 		if err != nil {
 			t.Error("error setting gpio 7 pull down: ", err)
 		}
-		time.Sleep(100 * time.Millisecond)
+		time.Sleep(200 * time.Millisecond)
 		t.Run("AlertFunc", func(t *testing.T) {
 			alertChan := make(chan int, 2)
 			err = pigpio.SetAlertFunc(7, func(gpio int, level int, tick uint32) {
@@ -207,12 +207,12 @@ func TestBeginner(t *testing.T) {
 			if err != nil {
 				t.Error("error setting alert func: ", err)
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			err = pigpio.SetPullUpDown(7, pigpio.PudUp)
 			if err != nil {
 				t.Error("error setting gpio 7 pull up: ", err)
 			}
-			time.Sleep(100 * time.Millisecond)
+			time.Sleep(200 * time.Millisecond)
 			err = pigpio.SetPullUpDown(7, pigpio.PudDown)
 			if err != nil {
 				t.Error("error setting gpio 7 pull down: ", err)
@@ -357,6 +357,80 @@ func TestBeginner(t *testing.T) {
 			}
 			if maxPw > maxAcceptablePw {
 				t.Errorf("observed pulse width was >%v while Servo pulse width set to 1500µs: %v", maxAcceptablePw, maxPw)
+			}
+		})
+	})
+	t.Run("Delay", func(t *testing.T) {
+		t.Run("1µs", func(t *testing.T) {
+			requestDelay := 1 * time.Microsecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
+			}
+		})
+		t.Run("50µs", func(t *testing.T) {
+			requestDelay := 50 * time.Microsecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
+			}
+		})
+		t.Run("MaxBusy", func(t *testing.T) {
+			requestDelay := pigpio.MaxBusyDelay * time.Microsecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
+			}
+		})
+		t.Run("MaxBusy+1", func(t *testing.T) {
+			requestDelay := (pigpio.MaxBusyDelay + 1) * time.Microsecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
+			}
+		})
+		t.Run("MaxBusy*2", func(t *testing.T) {
+			requestDelay := (pigpio.MaxBusyDelay * 2) * time.Microsecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
+			}
+		})
+		t.Run("10ms", func(t *testing.T) {
+			requestDelay := 10 * time.Millisecond
+			startTime := time.Now()
+			delayReported := pigpio.Delay(requestDelay)
+			delayDuration := time.Since(startTime)
+			if delayDuration < requestDelay {
+				t.Errorf("requested delay of %v but Delay returned after only %v", requestDelay, delayDuration)
+			}
+			if delayDuration > delayReported+100*time.Microsecond {
+				t.Errorf("Delay reported %v delay but Delay actually took %v", delayReported, delayDuration)
 			}
 		})
 	})
